@@ -8,8 +8,8 @@ pipeline {
         SONAR_AUTH_TOKEN = 'sqa_37a008949cf733aba26bbfe6309fef3b2d2005de'
         
         // Tomcat server details
-        TOMCAT_USER = 'tomcat'  // Replace with your Tomcat username
-        TOMCAT_PASS = 's3cret'  // Replace with your Tomcat password
+        TOMCAT_USER = 'your-tomcat-username'  // Replace with your Tomcat username
+        TOMCAT_PASS = 'your-tomcat-password'  // Replace with your Tomcat password
         TOMCAT_URL = 'http://192.168.41.130:9090'  // Tomcat server URL
     }
 
@@ -23,8 +23,8 @@ pipeline {
 
         stage('Build') {
             steps {
-                // Build the project using Maven
-                sh 'mvn clean install'
+                // Build the project using Maven and package it as a WAR
+                sh 'mvn clean install package'  // Ensure the project generates a WAR
             }
         }
 
@@ -53,9 +53,9 @@ pipeline {
 
         stage('Deploy to Tomcat') {
             steps {
-                // Deploy WAR to Tomcat server
+                // Deploy the generated WAR to Tomcat server
                 script {
-                    def warFile = 'target/your-app.war' // Update with the actual WAR file name
+                    def warFile = 'target/your-app.war'  // Replace with the generated WAR file
                     sh """
                     curl --user ${TOMCAT_USER}:${TOMCAT_PASS} --upload-file ${warFile} \
                         ${TOMCAT_URL}/manager/text/deploy?path=/your-app&update=true
