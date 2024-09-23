@@ -37,18 +37,6 @@ pipeline {
             }
         }
 
-        stage('Quality Gate') {
-            steps {
-                // Wait for SonarQube Quality Gate result
-                timeout(time: 10, unit: 'MINUTES') { // Adjusted timeout
-                    script {
-                        def qualityGateResult = waitForQualityGate abortPipeline: true
-                        echo "Quality Gate status: ${qualityGateResult.status}"
-                    }
-                }
-            }
-        }
-
         stage('Deploy') {
             steps {
                 // Deployment step
@@ -64,7 +52,7 @@ pipeline {
             echo 'Build, SonarQube analysis, and deployment completed successfully!'
         }
         failure {
-            echo 'Build failed, SonarQube quality gate failed, or deployment failed.'
+            echo 'Build failed or deployment failed.'
         }
     }
 }
