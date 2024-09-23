@@ -47,7 +47,7 @@ pipeline {
         stage('Push Docker Image to Docker Hub') {
             steps {
                 script {
-                    sh "docker login -u rakeshrampalli -p <your_docker_password>" // Use your actual Docker Hub password
+                    sh "docker login -u rakeshrampalli -p Rakesh_12345" // Use your actual Docker Hub password
                     sh "docker push ${DOCKER_IMAGE_NAME}:latest"
                 }
             }
