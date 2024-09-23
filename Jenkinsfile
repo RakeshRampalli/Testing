@@ -2,36 +2,33 @@ pipeline {
     agent any
 
     environment {
+        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials' // Set up in Jenkins
+        GIT_URL = 'https://github.com/RakeshRampalli/Testing-.git'
         SONAR_PROJECT_KEY = 'TestingApp'
         SONAR_HOST_URL = 'http://192.168.41.130:9000'
         SONAR_AUTH_TOKEN = 'sqa_37a008949cf733aba26bbfe6309fef3b2d2005de'
-        DOCKER_IMAGE_NAME = 'rakeshrampalli/testing' // Adjust based on your naming preference
+        K8S_DEPLOYMENT_NAME = 'Testing'
+        DOCKER_IMAGE_NAME = 'testing'
+        DOCKER_IMAGE_TAG = 'latest'
     }
 
     stages {
-        stage('Checkout') {
+        stage('Clone Repository') {
             steps {
-                git 'https://github.com/RakeshRampalli/Testing-.git'
+                git branch: 'main', url: GIT_URL
             }
         }
-        
-        stage('Build') {
+
+        stage('Build WAR') {
             steps {
-                script {
-                    sh 'mvn clean package'
-                }
+                sh 'mvn clean package'
             }
         }
-        
+
         stage('SonarQube Analysis') {
             steps {
-                script {
-                    sh """
-                    mvn sonar:sonar \
-                    -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                    -Dsonar.host.url=${SONAR_HOST_URL} \
-                    -Dsonar.login=${SONAR_AUTH_TOKEN}
-                    """
+                withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_AUTH_TOKEN')]) {
+                    sh "mvn sonar:sonar -Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.host.url=${SONAR_HOST_URL} -Dsonar.login=${SONAR_AUTH_TOKEN}"
                 }
             }
         }
@@ -39,16 +36,19 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh "docker build -t ${DOCKER_IMAGE_NAME}:latest ."
+                    docker.withRegistry('https://index.docker.io/v1/', DOCKER_CREDENTIALS_ID) {
+                        sh "docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} ."
+                    }
                 }
             }
         }
 
-        stage('Push Docker Image to Docker Hub') {
+        stage('Push Docker Image') {
             steps {
                 script {
-                    sh "docker login -u rakeshrampalli -p Rakesh_12345" // Use your actual Docker Hub password
-                    sh "docker push ${DOCKER_IMAGE_NAME}:latest"
+                    docker.withRegistry('https://index.docker.io/v1/', DOCKER_CREDENTIALS_ID) {
+                        sh "docker push ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+                    }
                 }
             }
         }
@@ -57,30 +57,19 @@ pipeline {
             steps {
                 script {
                     sh """
-                    kubectl apply -f - <<EOF
-                    apiVersion: apps/v1
-                    kind: Deployment
-                    metadata:
-                      name: Testing
-                    spec:
-                      replicas: 1
-                      selector:
-                        matchLabels:
-                          app: testing
-                      template:
-                        metadata:
-                          labels:
-                            app: testing
-                        spec:
-                          containers:
-                          - name: testing
-                            image: ${DOCKER_IMAGE_NAME}:latest
-                            ports:
-                            - containerPort: 8080
-                    EOF
+                    kubectl apply -f k8s/deployment.yaml --record
                     """
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed.'
         }
     }
 }
