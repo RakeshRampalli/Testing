@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: Testing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: TestingApp
+  template:
+    metadata:
+      labels:
+        app: TestingApp
+    spec:
+      containers:
+      - name: testing
+        image: rakeshrampalli/testing:latest
+        ports:
+        - containerPort: 8081
