@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials' // Set up in Jenkins
+        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials'
         GIT_URL = 'https://github.com/RakeshRampalli/Testing-.git'
         SONAR_PROJECT_KEY = 'TestingApp'
         SONAR_HOST_URL = 'http://192.168.41.130:9000'
@@ -19,16 +19,16 @@ pipeline {
             }
         }
 
-        stage('Build WAR') {
+        stage('List Workspace') {
             steps {
-                sh 'mvn clean package'
+                sh 'ls -la'  // Debug step to list workspace contents
             }
         }
 
-        stage('SonarQube Analysis') {
+        stage('Build WAR') {
             steps {
-                withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_AUTH_TOKEN')]) {
-                    sh "mvn sonar:sonar -Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.host.url=${SONAR_HOST_URL} -Dsonar.login=${SONAR_AUTH_TOKEN}"
+                dir('my-app') {  // Change this if pom.xml is inside a subdirectory
+                    sh 'mvn clean package'
                 }
             }
         }
@@ -36,18 +36,16 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.withRegistry('https://index.docker.io/v1/', DOCKER_CREDENTIALS_ID) {
-                        sh "docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} ."
-                    }
+                    dockerImage = docker.build("${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}")
                 }
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Push to Docker Hub') {
             steps {
                 script {
                     docker.withRegistry('https://index.docker.io/v1/', DOCKER_CREDENTIALS_ID) {
-                        sh "docker push ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+                        dockerImage.push("${DOCKER_IMAGE_TAG}")
                     }
                 }
             }
@@ -56,20 +54,17 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    sh """
-                    kubectl apply -f k8s/deployment.yaml --record
-                    """
+                    sh 'kubectl apply -f k8s/deployment.yaml'  // Ensure you have the deployment.yaml file
                 }
             }
         }
-    }
 
-    post {
-        success {
-            echo 'Pipeline completed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed.'
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh "mvn sonar:sonar -Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.host.url=${SONAR_HOST_URL} -Dsonar.login=${SONAR_AUTH_TOKEN}"
+                }
+            }
         }
     }
 }
