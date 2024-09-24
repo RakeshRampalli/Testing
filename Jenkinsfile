@@ -2,68 +2,60 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials'
-        GIT_URL = 'https://github.com/RakeshRampalli/Testing-.git'
         SONAR_PROJECT_KEY = 'TestingApp'
         SONAR_HOST_URL = 'http://192.168.41.130:9000'
         SONAR_AUTH_TOKEN = 'sqa_37a008949cf733aba26bbfe6309fef3b2d2005de'
-        K8S_DEPLOYMENT_NAME = 'Testing'
-        DOCKER_IMAGE_NAME = 'testing'
-        DOCKER_IMAGE_TAG = 'latest'
+        DOCKER_IMAGE = 'testing'
+        DOCKER_USERNAME = 'rakeshrampalli'
+        DOCKER_PASSWORD = 'Rakesh_12345'
     }
 
     stages {
         stage('Clone Repository') {
             steps {
-                git branch: 'main', url: GIT_URL
+                git branch: 'main', url: 'https://github.com/RakeshRampalli/Testing-.git'
+            }
+        }
+        
+        stage('Check pom.xml Location') {
+            steps {
+                sh 'find . -name "pom.xml"'
             }
         }
 
-        stage('List Workspace') {
+        stage('Build with Maven') {
             steps {
-                sh 'ls -la'  // Debug step to list workspace contents
+                // Adjust the directory if pom.xml is not in the root of the repository
+                sh 'mvn clean package'
             }
         }
-
-        stage('Build WAR') {
+        
+        stage('SonarQube Analysis') {
             steps {
-                dir('my-app') {  // Change this if pom.xml is inside a subdirectory
-                    sh 'mvn clean package'
+                withSonarQubeEnv('SonarQube') {
+                    sh "mvn sonar:sonar -Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.host.url=${SONAR_HOST_URL} -Dsonar.login=${SONAR_AUTH_TOKEN}"
                 }
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Docker Build') {
             steps {
-                script {
-                    dockerImage = docker.build("${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}")
-                }
+                sh 'docker build -t ${DOCKER_USERNAME}/${DOCKER_IMAGE}:latest .'
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Docker Push') {
             steps {
-                script {
-                    docker.withRegistry('https://index.docker.io/v1/', DOCKER_CREDENTIALS_ID) {
-                        dockerImage.push("${DOCKER_IMAGE_TAG}")
-                    }
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                    sh 'docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}'
+                    sh 'docker push ${DOCKER_USERNAME}/${DOCKER_IMAGE}:latest'
                 }
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
-                script {
-                    sh 'kubectl apply -f k8s/deployment.yaml'  // Ensure you have the deployment.yaml file
-                }
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh "mvn sonar:sonar -Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.host.url=${SONAR_HOST_URL} -Dsonar.login=${SONAR_AUTH_TOKEN}"
-                }
+                sh 'kubectl apply -f k8s/deployment.yaml'
             }
         }
     }
