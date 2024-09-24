@@ -2,13 +2,13 @@
 FROM openjdk:11-jre-slim
 
 # Set the working directory in the container
-WORKDIR /app
+WORKDIR /your-app/your-app
 
-# Copy the jar file into the container at /app
-COPY target/your-app-1.0-SNAPSHOT.jar /app/your-app.jar
+# Copy the JAR file into the container at /your-app/your-app/target
+COPY target/jenkins-sonar-1.0-SNAPSHOT.jar /your-app/your-app/target/your-app.jar
 
-# Run the jar file
-ENTRYPOINT ["java", "-jar", "/app/your-app.jar"]
+# Run the JAR file
+ENTRYPOINT ["java", "-jar", "/your-app/your-app/target/your-app.jar"]
 
-# Expose the application on port 8081
+# Expose the application port (adjust the port if needed)
 EXPOSE 8081
