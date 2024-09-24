@@ -2,30 +2,34 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub')
+        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials' // Configure in Jenkins for Docker Hub credentials
+        DOCKER_IMAGE_NAME = 'rakeshrampalli/testing:latest'
         SONAR_PROJECT_KEY = 'TestingApp'
         SONAR_HOST_URL = 'http://192.168.41.130:9000'
         SONAR_AUTH_TOKEN = 'sqa_37a008949cf733aba26bbfe6309fef3b2d2005de'
     }
 
     stages {
-        stage('Clone Git') {
+        stage('Checkout') {
             steps {
+                // Checkout the code from the Git repository
                 git branch: 'main', url: 'https://github.com/RakeshRampalli/Testing.git'
             }
         }
 
-        stage('Build Maven Project') {
+        stage('Build') {
             steps {
                 script {
-                    sh 'mvn clean package'
+                    // Clean and package the application
+                    sh 'mvn clean package -DskipTests'
                 }
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') {
+                script {
+                    // Run SonarQube analysis
                     sh """
                     mvn sonar:sonar \
                     -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
@@ -36,10 +40,11 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Docker Build') {
             steps {
                 script {
-                    sh 'docker build -t rakeshrampalli/testing:latest .'
+                    // Build the Docker image
+                    sh "docker build -t ${DOCKER_IMAGE_NAME} ."
                 }
             }
         }
@@ -47,22 +52,34 @@ pipeline {
         stage('Docker Push') {
             steps {
                 script {
-                    sh """
-                    echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin
-                    docker push rakeshrampalli/testing:latest
-                    """
+                    // Push the Docker image to Docker Hub
+                    withCredentials([usernamePassword(credentialsId: DOCKER_CREDENTIALS_ID, passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                        sh "echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin"
+                        sh "docker push ${DOCKER_IMAGE_NAME}"
+                    }
                 }
             }
         }
-
+        
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    sh """
+                    // Deploy the Docker image to Kubernetes
+                    sh '''
                     kubectl apply -f k8s/deployment.yaml
-                    """
+                    kubectl apply -f k8s/service.yaml
+                    '''
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Please check the logs for more details.'
         }
     }
 }
