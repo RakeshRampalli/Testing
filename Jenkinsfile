@@ -16,28 +16,20 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/RakeshRampalli/Testing-.git'
             }
         }
-
-        stage('List Files') {
-            steps {
-                // Check if the repository is cloned correctly and list files
-                sh 'ls -la'
-            }
-        }
-
+        
         stage('Check pom.xml Location') {
             steps {
-                // This will check where pom.xml is located
                 sh 'find . -name "pom.xml"'
             }
         }
 
         stage('Build with Maven') {
             steps {
-                // If pom.xml is in a subdirectory, adjust the path accordingly
+                // Adjust the directory if pom.xml is not in the root of the repository
                 sh 'mvn clean package'
             }
         }
-
+        
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
