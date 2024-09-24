@@ -1,33 +1,48 @@
 pipeline {
     agent any
-    
+
     environment {
-        DOCKER_USERNAME = 'rakeshrampalli'
-        DOCKER_IMAGE = 'testing'
-        K8S_DEPLOYMENT_NAME = 'Testing'
         SONAR_PROJECT_KEY = 'TestingApp'
         SONAR_HOST_URL = 'http://192.168.41.130:9000'
         SONAR_AUTH_TOKEN = 'sqa_37a008949cf733aba26bbfe6309fef3b2d2005de'
+        DOCKER_IMAGE = 'testing'
+        DOCKER_USERNAME = 'rakeshrampalli'
+        DOCKER_PASSWORD = 'Rakesh_12345'
     }
-    
+
     stages {
-        stage('Checkout') {
+        stage('Clone Repository') {
             steps {
                 git branch: 'main', url: 'https://github.com/RakeshRampalli/Testing-.git'
+            }
+        }
+
+        stage('List Files') {
+            steps {
+                // Check if the repository is cloned correctly and list files
+                sh 'ls -la'
+            }
+        }
+
+        stage('Check pom.xml Location') {
+            steps {
+                // This will check where pom.xml is located
+                sh 'find . -name "pom.xml"'
+            }
+        }
+
+        stage('Build with Maven') {
+            steps {
+                // If pom.xml is in a subdirectory, adjust the path accordingly
+                sh 'mvn clean package'
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    sh 'mvn clean verify sonar:sonar -Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.host.url=${SONAR_HOST_URL} -Dsonar.login=${SONAR_AUTH_TOKEN}'
+                    sh "mvn sonar:sonar -Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.host.url=${SONAR_HOST_URL} -Dsonar.login=${SONAR_AUTH_TOKEN}"
                 }
-            }
-        }
-
-        stage('Build with Maven') {
-            steps {
-                sh 'mvn clean package'
             }
         }
 
@@ -39,8 +54,8 @@ pipeline {
 
         stage('Docker Push') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                    sh 'docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}'
                     sh 'docker push ${DOCKER_USERNAME}/${DOCKER_IMAGE}:latest'
                 }
             }
@@ -48,10 +63,7 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                sh """
-                kubectl set image deployment/${K8S_DEPLOYMENT_NAME} ${K8S_DEPLOYMENT_NAME}=${DOCKER_USERNAME}/${DOCKER_IMAGE}:latest --record
-                kubectl rollout status deployment/${K8S_DEPLOYMENT_NAME}
-                """
+                sh 'kubectl apply -f k8s/deployment.yaml'
             }
         }
     }
