@@ -63,16 +63,29 @@ pipeline {
         }
         
         stage('Deploy to Kubernetes') {
-            steps {
-                script {
-                    // Deploy the Docker image to Kubernetes using k8s-credentials
-                    withCredentials([file(credentialsId: K8S_CREDENTIALS_ID, variable: 'KUBECONFIG_FILE')]) {
-                        // Set KUBECONFIG to use the uploaded kubeconfig file
-                        sh 'export KUBECONFIG=$KUBECONFIG_FILE'
-                        sh '''
-                        kubectl apply -f k8s/deployment.yaml --validate=false
-                        kubectl apply -f k8s/service.yaml --validate=false
-                        '''
+    steps {
+        script {
+            withCredentials([file(credentialsId: K8S_CREDENTIALS_ID, variable: 'KUBECONFIG_FILE')]) {
+                // Set KUBECONFIG to use the uploaded kubeconfig file
+                sh 'export KUBECONFIG=$KUBECONFIG_FILE'
+
+                // Add commands to debug kubeconfig and kubectl access
+                sh '''
+                echo "Kubeconfig contents:"
+                cat $KUBECONFIG_FILE
+                
+                echo "Kubeconfig environment variable:"
+                echo $KUBECONFIG
+                
+                echo "Attempting to get pods..."
+                kubectl get pods
+                '''
+
+                // Apply the deployment and service files
+                sh '''
+                kubectl apply -f k8s/deployment.yaml --validate=false
+                kubectl apply -f k8s/service.yaml --validate=false
+                '''
                     }
                 }
             }
