@@ -7,6 +7,7 @@ pipeline {
         SONAR_PROJECT_KEY = 'TestingApp'
         SONAR_HOST_URL = 'http://192.168.41.130:9000'
         SONAR_AUTH_TOKEN = 'sqa_37a008949cf733aba26bbfe6309fef3b2d2005de'
+        K8S_CREDENTIALS_ID = 'k8s-credentials' // ID for Kubernetes credentials
     }
 
     stages {
@@ -64,11 +65,15 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    // Deploy the Docker image to Kubernetes
-                    sh '''
-                    kubectl apply -f k8s/deployment.yaml
-                    kubectl apply -f k8s/service.yaml
-                    '''
+                    // Deploy the Docker image to Kubernetes using k8s-credentials
+                    withCredentials([file(credentialsId: K8S_CREDENTIALS_ID, variable: 'KUBECONFIG_FILE')]) {
+                        // Set KUBECONFIG to use the uploaded kubeconfig file
+                        sh 'export KUBECONFIG=$KUBECONFIG_FILE'
+                        sh '''
+                        kubectl apply -f k8s/deployment.yaml
+                        kubectl apply -f k8s/service.yaml
+                        '''
+                    }
                 }
             }
         }
