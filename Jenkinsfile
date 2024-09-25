@@ -7,7 +7,7 @@ pipeline {
         SONAR_PROJECT_KEY = 'TestingApp'
         SONAR_HOST_URL = 'http://192.168.41.130:9000'
         SONAR_AUTH_TOKEN = 'sqa_37a008949cf733aba26bbfe6309fef3b2d2005de'
-        K8S_CREDENTIALS_ID = 'k8s-kubeconfig' // Updated Kubernetes credentials to kubeconfig file
+        K8S_CREDENTIALS_ID = 'k8s-credentials' // Kubernetes token in Jenkins
     }
 
     stages {
@@ -65,29 +65,15 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    // Use Jenkins credentials to handle the kubeconfig file
-                    withCredentials([file(credentialsId: K8S_CREDENTIALS_ID, variable: 'KUBECONFIG_FILE')]) {
-                        // Set the KUBECONFIG environment variable to use the kubeconfig file
-                        sh 'export KUBECONFIG=$KUBECONFIG_FILE'
-
-                        // Add commands to debug kubeconfig and kubectl access
-                        sh '''
-                        echo "Kubeconfig contents:"
-                        cat $KUBECONFIG_FILE
-                        
-                        echo "Kubeconfig environment variable:"
-                        echo $KUBECONFIG
-                        
-                        echo "Attempting to get pods..."
-                        kubectl get pods
-                        '''
-
-                        // Apply the deployment and service files
-                        sh '''
-                        kubectl apply -f k8s/deployment.yaml --validate=false
-                        kubectl apply -f k8s/service.yaml --validate=false
-                        '''
-                    }
+                    // Retrieve Kubernetes token from Jenkins credentials
+                    def k8sToken = credentials(K8S_CREDENTIALS_ID)
+                    // Set the KUBECONFIG environment variable
+                    sh "kubectl config set-credentials my-user --token=${k8sToken}"
+                    // Apply the deployment and service files
+                    sh '''
+                    kubectl apply -f k8s/deployment.yaml --validate=false
+                    kubectl apply -f k8s/service.yaml --validate=false
+                    '''
                 }
             }
         }
