@@ -70,10 +70,8 @@ pipeline {
                     // Set the KUBECONFIG environment variable
                     sh "kubectl config set-credentials my-user --token=${k8sToken}"
                     // Apply the deployment and service files
-                    sh '''
-                    kubectl apply -f k8s/deployment.yaml --validate=false
-                    kubectl apply -f k8s/service.yaml --validate=false
-                    '''
+                    sh 'kubectl apply -f k8s/deployment.yaml --validate=false'
+                    sh 'kubectl apply -f k8s/service.yaml --validate=false'
                 }
             }
         }
