@@ -65,13 +65,13 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    // Retrieve Kubernetes token from Jenkins credentials
+                    // Retrieve Kubernetes token from Jenkins credentials and set context
                     def k8sToken = credentials(K8S_CREDENTIALS_ID)
-                    // Set the KUBECONFIG environment variable
-                    sh "kubectl config set-credentials my-user --token=${k8sToken}"
-                    // Apply the deployment and service files
-                    sh 'kubectl apply -f k8s/deployment.yaml --validate=false'
-                    sh 'kubectl apply -f k8s/service.yaml --validate=false'
+                    sh """
+                    kubectl config set-credentials my-user --token=${k8sToken}
+                    kubectl apply -f k8s/deployment.yaml --validate=false
+                    kubectl apply -f k8s/service.yaml --validate=false
+                    """
                 }
             }
         }
