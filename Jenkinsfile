@@ -7,7 +7,7 @@ pipeline {
         SONAR_PROJECT_KEY = 'TestingApp'
         SONAR_HOST_URL = 'http://192.168.41.130:9000'
         SONAR_AUTH_TOKEN = 'sqa_37a008949cf733aba26bbfe6309fef3b2d2005de'
-        K8S_CREDENTIALS_ID = 'k8s-credentials' // Kubernetes credentials in Jenkins
+        K8S_CREDENTIALS_ID = 'k8s-kubeconfig' // Updated Kubernetes credentials to kubeconfig file
     }
 
     stages {
