@@ -62,20 +62,25 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
-            steps {
-                script {
-                    // Retrieve Kubernetes token from Jenkins credentials and set context
-                    def k8sToken = credentials(K8S_CREDENTIALS_ID)
-                    sh """
-                    kubectl config set-credentials my-user --token=${k8sToken}
-                    kubectl apply -f k8s/deployment.yaml --validate=false
-                    kubectl apply -f k8s/service.yaml --validate=false
-                    """
-                }
+       stage('Deploy to Kubernetes') {
+    steps {
+        script {
+            // Use Jenkins credentials to handle the kubeconfig file
+            withCredentials([file(credentialsId: K8S_CREDENTIALS_ID, variable: 'KUBECONFIG_FILE')]) {
+                // Set the KUBECONFIG environment variable to use the kubeconfig file
+                sh '''
+                echo "Using KUBECONFIG_FILE: $KUBECONFIG_FILE"
+                echo "K8S_TOKEN: $K8S_TOKEN"
+
+                export KUBECONFIG=$KUBECONFIG_FILE
+                kubectl config set-credentials my-user --token=${K8S_TOKEN}
+                kubectl apply -f k8s/deployment.yaml --validate=false
+                kubectl apply -f k8s/service.yaml --validate=false
+                '''
             }
         }
     }
+}
 
     post {
         success {
